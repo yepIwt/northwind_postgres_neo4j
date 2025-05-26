@@ -119,6 +119,70 @@ MATCH (p:Product), (o:Order)
 WHERE p.productID = row.productID AND o.orderID = row.orderID
 CREATE (o)-[details:ORDERS]->(p)
 SET details = row, details.quantity = toInteger(row.quantity);
+
+// Import employees
+LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/employees.csv" AS row
+CREATE (n:Employee)
+SET n = row,
+n.employeeID = toInteger(row.employeeID),
+n.reportsTo = CASE WHEN row.reportsTo <> "" THEN toInteger(row.reportsTo) ELSE NULL END;
+
+// Index for employees
+CREATE INDEX employee_employeeID_index FOR (n:Employee) ON (n.employeeID);
+
+// Create reporting hierarchy
+MATCH (e:Employee), (manager:Employee)
+WHERE e.reportsTo = manager.employeeID
+CREATE (e)-[:REPORTS_TO]->(manager);
+
+// Import regions
+LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/regions.csv" AS row
+CREATE (n:Region)
+SET n = row,
+n.regionID = toInteger(row.regionID);
+
+// Import territories
+LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/territories.csv" AS row
+CREATE (n:Territory)
+SET n = row,
+n.territoryID = toInteger(row.territoryID),
+n.regionID = toInteger(row.regionID);
+
+// Indexes
+CREATE INDEX region_regionID_index FOR (n:Region) ON (n.regionID);
+CREATE INDEX territory_territoryID_index FOR (n:Territory) ON (n.territoryID);
+
+// Connect territories to regions
+MATCH (t:Territory), (r:Region)
+WHERE t.regionID = r.regionID
+CREATE (t)-[:BELONGS_TO]->(r);
+
+// Import employee-territories
+LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/employee-territories.csv" AS row
+MATCH (e:Employee), (t:Territory)
+WHERE e.employeeID = toInteger(row.employeeID) AND t.territoryID = row.territoryID
+CREATE (e)-[:COVERS]->(t);
+
+// Import shippers
+LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/shippers.csv" AS row
+CREATE (n:Shipper)
+SET n = row,
+n.shipperID = toInteger(row.shipperID);
+
+// Index
+CREATE INDEX shipper_shipperID_index FOR (n:Shipper) ON (n.shipperID);
+
+// Connect orders to shippers
+MATCH (s:Shipper), (o:Order)
+WHERE s.shipperID = toInteger(o.shipVia)
+CREATE (s)-[:DELIVERS]->(o);
+
+
+LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/employee-territories.csv" AS row
+MATCH (e:Employee {employeeID: toInteger(row.employeeID)})
+MATCH (t:Territory {territoryID: toInteger(row.territoryID)})
+MERGE (e)-[:COVERS]->(t);
+
 ```
 
 
