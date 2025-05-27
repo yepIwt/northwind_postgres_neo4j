@@ -183,6 +183,10 @@ MATCH (e:Employee {employeeID: toInteger(row.employeeID)})
 MATCH (t:Territory {territoryID: toInteger(row.territoryID)})
 MERGE (e)-[:COVERS]->(t);
 
+MATCH (e:Employee), (o:Order)
+WHERE toInteger(e.employeeID) = toInteger(o.employeeID)
+CREATE (e)-[:SOLD]->(o);
+
 ```
 
 
